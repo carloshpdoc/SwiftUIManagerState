@@ -1,10 +1,12 @@
 import SwiftUI
 
 struct ContentView: View {
+    @ObservedObject var state: AppState
+
     var body: some View {
         NavigationView {
             List {
-                NavigationLink(destination: CounterView()) {
+                NavigationLink(destination: CounterView(state: self.state)) {
                     Text("Counter demo")
                 }
                 NavigationLink(destination: EmptyView()) {
@@ -23,20 +25,35 @@ private func ordinal(_ n: Int) -> String {
     return formatter.string(for: n) ?? ""
 }
 
+// ObservableObject
+import Combine
+
+class AppState: ObservableObject {
+    @Published var count = 0
+//    var count = 0 {
+//        willSet {
+//            self.objectWillChange.send()
+//        }
+//    }
+
+//    var didChange = PassthroughSubject<Void, Never>()
+}
+
 struct CounterView: View {
-    @State var count: Int = 0
+    @ObservedObject var state: AppState
+
     var body: some View {
 //        self.$count // Binding<Int>
         VStack {
             HStack {
                 Button(action: {
-                    self.count -= 1
+                    self.state.count -= 1
                 }) {
                     Text("-")
                     }
-                Text("\(self.count)")
+                Text("\(self.state.count)")
                 Button(action: {
-                    self.count += 1
+                    self.state.count += 1
                 }) {
                     Text("+")
                 }
@@ -45,7 +62,7 @@ struct CounterView: View {
                 Text("Is this prime?")
             }
             Button(action: {}) {
-                Text("What is the \(ordinal(self.count)) prime?")
+                Text("What is the \(ordinal(self.state.count)) prime?")
             }
         }
         .font(.title)
@@ -56,4 +73,4 @@ struct CounterView: View {
 import PlaygroundSupport
 
 
-PlaygroundPage.current.setLiveView(ContentView())
+PlaygroundPage.current.setLiveView(ContentView(state: AppState()))
