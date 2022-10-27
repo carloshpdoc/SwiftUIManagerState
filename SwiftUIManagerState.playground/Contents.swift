@@ -105,7 +105,7 @@ struct ContentView: View {
                 NavigationLink(destination: CounterView(state: self.state)) {
                     Text("Counter demo")
                 }
-                NavigationLink(destination: EmptyView()) {
+                NavigationLink(destination: FavoritePrimes(state: self.state)) {
                     Text("Favorite primes")
                 }
             }
@@ -130,9 +130,9 @@ class AppState: ObservableObject {
 }
 
 struct PrimeAlert: Identifiable {
-  let prime: Int
+    let prime: Int
 
-  var id: Int { self.prime }
+    var id: Int { self.prime }
 }
 
 struct CounterView: View {
@@ -179,10 +179,28 @@ struct CounterView: View {
     func nthPrimeButtonAction() {
         self.isNthPrimeButtonDisabled = true
         nthPrime(self.state.count) { prime in
-          self.alertNthPrime = prime.map(PrimeAlert.init(prime:))
-          self.isNthPrimeButtonDisabled = false
+            self.alertNthPrime = prime.map(PrimeAlert.init(prime:))
+            self.isNthPrimeButtonDisabled = false
         }
-      }
+    }
+}
+
+struct FavoritePrimes: View {
+    @ObservedObject var state: AppState
+
+    var body: some View {
+        List {
+            ForEach(self.state.favoritePrimes, id: \.self) { prime in
+                Text("\(prime)")
+            }
+            .onDelete(perform: { indexSet in
+                for index in indexSet {
+                  self.state.favoritePrimes.remove(at: index)
+                }
+            })
+            .navigationBarTitle(Text("Favorite Primes"))
+        }
+    }
 }
 
 import PlaygroundSupport
