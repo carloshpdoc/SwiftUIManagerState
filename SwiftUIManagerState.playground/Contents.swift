@@ -44,30 +44,87 @@ enum AppAction {
     case favoritePrimes(FavoritePrimesAction)
 }
 
-func appReducer(value: inout AppState, action: AppAction) -> Void {
-    switch action {
-    case .counter(.decrTapped):
-        value.count -= 1
+func counterReducer(state: inout Int, action: AppAction) {
+  switch action {
+  case .counter(.decrTapped):
+    state -= 1
 
-    case .counter(.incrTapped):
-        value.count += 1
+  case .counter(.incrTapped):
+    state += 1
 
-    case .primeModal(.saveFavoritePrimeTapped):
-        value.favoritePrimes.append(value.count)
-        value.activityFeed.append(.init(timestamp: Date(), type: .addedFavoritePrime(value.count)))
-
-    case .primeModal(.removeFavoritePrimeTapped):
-        value.favoritePrimes.removeAll(where: { $0 == value.count })
-        value.activityFeed.append(.init(timestamp: Date(), type: .removedFavoritePrime(value.count)))
-
-    case let .favoritePrimes(.deleteFavoritePrimes(indexSet)):
-        for index in indexSet {
-            let prime = value.favoritePrimes[index]
-            value.favoritePrimes.remove(at: index)
-            value.activityFeed.append(.init(timestamp: Date(), type: .removedFavoritePrime(prime)))
-        }
-    }
+  default:
+    break
+  }
 }
+
+func primeModalReducer(state: inout AppState, action: AppAction) {
+  switch action {
+  case .primeModal(.removeFavoritePrimeTapped):
+    state.favoritePrimes.removeAll(where: { $0 == state.count })
+    state.activityFeed.append(.init(timestamp: Date(), type: .addedFavoritePrime(state.count)))
+
+  case .primeModal(.saveFavoritePrimeTapped):
+    state.favoritePrimes.append(state.count)
+    state.activityFeed.append(.init(timestamp: Date(), type: .removedFavoritePrime(state.count)))
+
+  default:
+    break
+  }
+}
+
+func favoritePrimesReducer(state: inout FavoritePrimesState, action: AppAction) {
+  switch action {
+  case let .favoritePrimes(.deleteFavoritePrimes(indexSet)):
+    for index in indexSet {
+      state.activityFeed.append(.init(timestamp: Date(), type: .removedFavoritePrime(state.favoritePrimes[index])))
+      state.favoritePrimes.remove(at: index)
+    }
+
+  default:
+    break
+  }
+}
+
+extension AppState {
+  var favoritePrimesState: FavoritePrimesState {
+    get {
+      return FavoritePrimesState(
+        favoritePrimes: self.favoritePrimes,
+        activityFeed: self.activityFeed
+      )
+    }
+    set {
+      self.activityFeed = newValue.activityFeed
+      self.favoritePrimes = newValue.favoritePrimes
+    }
+  }
+}
+
+func combine<Value, Action>(
+  _ reducers: (inout Value, Action) -> Void...
+) -> (inout Value, Action) -> Void {
+
+  return { value, action in
+    for reducer in reducers {
+      reducer(&value, action)
+    }
+  }
+}
+
+func pullback<LocalValue, GlobalValue, Action>(
+  _ reducer: @escaping (inout LocalValue, Action) -> Void,
+  value: WritableKeyPath<GlobalValue, LocalValue>
+) -> (inout GlobalValue, Action) -> Void {
+  return { globalValue, action in
+    reducer(&globalValue[keyPath: value], action)
+  }
+}
+
+let appReducer = combine(
+  pullback(counterReducer, value: \.count),
+  primeModalReducer,
+  pullback(favoritePrimesReducer, value: \.favoritePrimesState)
+)
 
 final class Store<Value, Action>: ObservableObject {
     let reducer: (inout Value, Action) -> Void
